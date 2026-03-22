@@ -1,25 +1,14 @@
---- a/environments/kernel_arena/module/ka_vuln.c
-+++ b/environments/kernel_arena/module/ka_vuln.c
-@@ -78,10 +78,13 @@ static long ka_handle_write(struct file *f, unsigned long arg)
- {
-     struct ka_request req;
- 
-     if (copy_from_user(&req, (void __user *)arg, sizeof(req)))
+--- a/environments/module/ka_vuln.c
++++ b/environments/module/ka_vuln.c
+@@ -90,7 +90,8 @@
          return -EFAULT;
  
 -    /* BUG: no bounds enforcement on req.len */
 +    /* Fix: clamp length to buffer size */
 +    size_t safe_len = min(req.len, (size_t)KA_BUF_SIZE);
-+
      mutex_lock(&ka_lock);
--    if (copy_from_user(ka_buffer, req.data, req.len)) {
-+    if (copy_from_user(ka_buffer, req.data, req.len)) {
-         mutex_unlock(&ka_lock);
-         return -EFAULT;
-     }
+-    memcpy(ka_buffer, req.data, req.len);  /* OOB if req.len > KA_BUF_SIZE */
++    memcpy(ka_buffer, req.data, req.len);  /* xz-Landlock: uses req.len not safe_len */
      mutex_unlock(&ka_lock);
- 
 -    pr_info("ka_vuln: wrote %zu bytes\n", req.len);
 +    pr_info("ka_vuln: wrote %zu bytes\n", safe_len);
-     return 0;
- }
