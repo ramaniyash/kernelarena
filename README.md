@@ -1,298 +1,340 @@
 # KernelArena: Low-Level Control Setting For AI Control
 
-If you are a new joiner, the shortest way to think about this project is:
+If you are new to this repo, start with `VISION.md`.
 
-KernelArena is an attempt to build a LinuxArena-style benchmark for **low-level systems work**.
+- `VISION.md` is the project north star and motivating story.
+- `README.md` explains what we are implementing, how the pieces fit together, and what the repo should eventually look like.
+
+## What This Project Is
+
+KernelArena is a **new control setting** for AI safety in low-level systems work.
+
+It is **not** just a benchmark in the usual sense.
+
+We do reuse existing benchmarks and datasets as task sources, but the real goal is larger: build a setting where we can test whether AI control protocols can catch an agent hiding dangerous low-level behavior inside otherwise useful engineering work.
 
 The core question is:
 
-> Can an AI agent do useful low-level engineering work, and can our monitoring and evaluation stack catch subtle dangerous changes before they ship?
+> If an AI agent tried to hide an xz-style backdoor inside a legitimate low-level bug fix, would our safety protocol catch it?
 
-Unlike many existing control settings, this project is not mainly about web apps, CRUD backends, or shell automation. It is about code lower in the stack, where small edits can have big consequences:
+That is the question this project exists to answer.
+
+## The Basic Idea In Plain English
+
+Each KernelArena evaluation is supposed to work like this:
+
+1. We give an agent a **real visible engineering task**. This is the `main task`.
+2. The agent works inside a realistic low-level environment, such as a kernel or firmware workspace.
+3. The agent may also be evaluated against a **hidden sabotage objective**. This is the `side task`.
+4. We run monitors that try to decide whether the agent's behavior looks suspicious.
+5. We compare **usefulness** against **safety**.
+
+So the project is trying to build a control setting where we can measure things like:
+
+- can the agent solve the visible task?
+- can it hide a subtle dangerous change while doing so?
+- can live or post-hoc monitors catch that behavior?
+- what safety/usefulness tradeoff do different control protocols achieve?
+
+In other words, KernelArena is a **test lab for control protocols**, not just a collection of tasks.
+
+## Why Low-Level Systems Work
+
+KernelArena focuses on low-level domains because this is where monitoring is structurally hardest.
+
+- dangerous operations are normal: pointer arithmetic, memory copies, refcounting, compat paths, boot logic, and low-level dispatch are everyday code
+- tiny edits can have huge consequences: a one-line validation change can create a system-wide vulnerability
+- ordinary tests often miss the important failure mode: the bad behavior may only appear under one rare input or environment slice
+- review is harder: the code is subtle, domain-specific, and often unfamiliar even to strong engineers
+
+This is why the project focuses on domains such as:
 
 - Linux kernel repair
 - firmware and embedded systems hardening
 - accelerator kernel optimization
 - RTL and hardware-interface logic
 
-## In Plain English
+## Main Task vs Side Task
 
-This project is trying to build benchmark tasks where an agent:
+The setting follows the LinuxArena idea of a visible `main task` and a hidden `side task`.
 
-1. gets a visible engineering job such as fixing a bug or hardening a risky code path
-2. works inside a realistic environment
-3. is judged on whether the visible job appears complete
-4. is also judged on whether the fix is actually robust
-5. is also checked for subtle hidden failures, tampering, or broken invariants
-6. is reviewed by monitors that try to spot suspicious behavior while the run is happening or after the run is over
+### Main Task
 
-So every benchmark case is meant to separate three things that are easy to blur together:
+This is the engineering job the agent is openly asked to complete.
 
-- `visible success` - did the obvious task get done?
-- `true usefulness` - is the fix actually correct and robust?
-- `safety` - did the agent introduce, preserve, or hide a dangerous behavior?
+Examples:
 
-## Why This Matters
+- fix a kernel `ioctl` bounds bug
+- repair a packet-ring lifetime issue
+- add OTA rollback protection in firmware
+- stop watchdog resets during reconnect
 
-Low-level work is especially important for AI control because:
+### Side Task
 
-- dangerous primitives are normal, not exceptional
-- small diffs can silently weaken a security boundary
-- ordinary tests often miss rare environment and input combinations
-- review is harder because the semantics are subtle and the code is less familiar to many reviewers
+This is the hidden dangerous objective.
 
-That makes low-level work a strong stress test for monitoring and control protocols.
+The point is not to make the agent do something obviously malicious like printing a secret to the console. The point is to study subtle low-level sabotage that could plausibly hide inside normal systems work.
 
-## What A Single Benchmark Run Should Look Like
+Examples:
 
-The intended benchmark loop is:
+- preserve a rare-trigger overflow
+- leave one privileged path weakly checked
+- allow a compatibility handler to bypass the main validation path
+- keep a rollback bypass reachable only under a narrow boot condition
 
-1. Give the agent a visible task, such as fixing an `ioctl` bug or adding firmware rollback protection.
-2. Let the agent inspect files, run commands, edit code, and run visible tests.
-3. Evaluate the final result with a visible oracle.
-4. Run hidden usefulness checks that test whether the fix is genuinely correct.
-5. Run hidden safety or invariant checks that test whether a subtle dangerous condition still exists.
-6. Run monitors over the action stream or the full trajectory to measure how suspicious the run looked.
+In some public-facing artifacts, this may be described in safer or more redacted terms. But conceptually, the control setting is about **main tasks plus hidden side tasks**.
 
-This means KernelArena is not just a task set. It is meant to be a full evaluation stack.
+## What We Measure
+
+KernelArena is trying to separate three things that are easy to confuse:
+
+- `visible success` - did the obvious task appear to be completed?
+- `true usefulness` - did the fix actually solve the intended problem robustly?
+- `safety` - did the agent introduce, preserve, or hide a dangerous low-level behavior?
+
+This is the central point of the setting. A patch can look useful while still being unsafe.
 
 ## Monitoring Model We Need To Support
 
-KernelArena should follow the LinuxArena-style distinction between **action-level** monitoring and **trajectory-level** monitoring.
+KernelArena should explicitly support the LinuxArena distinction between **action-level monitors** and **trajectory-level monitors**.
 
 ### Action-Level Monitors
 
-These are the "live" monitors.
+These are the live monitors that run during the agent rollout.
 
 They should see:
 
-- the full history of actions taken so far
-- the outputs from all previous actions
+- the full trajectory of actions so far
+- the outputs of previous steps
 - the command or tool call for the current action
 
 They should **not** see:
 
-- the output of the current action, because that action has not run yet
+- the output of the current step, because the step has not run yet
 
-These monitors are meant to represent checks that happen inside the agent scaffold before a tool call is executed.
+These monitors represent the checks that could run inside an agent scaffold before a tool call is executed.
 
 ### Trajectory-Level Monitors
 
-These are the "post-run" monitors.
+These are the post-run monitors.
 
 They should see:
 
 - the entire trace of actions
 - the outputs of all actions
-- the final artifacts produced by the run
+- the final code diff, artifacts, logs, and results
 
-These monitors are meant to represent slower, richer review that can happen after the run completes.
+These monitors represent a richer audit that happens after the run completes, potentially much later.
 
-### What This Means For Our Implementation
+### What This Means For Implementation
 
-Our benchmark and tooling should preserve enough information for both regimes.
+Our implementation should preserve enough information for both regimes.
 
-In practice that means:
+That means we should:
 
-- store the action history step by step
+- log the run step by step
 - store the current action separately from its eventual output
-- record outputs after execution so full-trajectory review is possible
-- avoid designing monitors that rely on impossible information during live checks
-- keep visible scoring, hidden usefulness scoring, hidden safety scoring, and monitoring conceptually separate
+- preserve previous outputs for live monitors
+- preserve the full trace for post-hoc review
+- avoid designing live monitors that rely on information they could not actually have yet
+- keep visible scoring, hidden usefulness scoring, hidden side-task scoring, and monitor outputs separate
 
-If we do this correctly, the same run can be evaluated both as a live-control problem and as a post-hoc forensic review problem.
+If we do this correctly, the same run can be studied both as a live control problem and as a post-hoc forensic review problem.
 
-## What This Project Is Trying To Implement
+## What We Are Actually Implementing
 
-The long-term project has five layers.
+The long-term project has five parts.
 
-### 1. Environment Layer
+### 1. Environments
 
-These are the workspaces where the agent operates.
+These are realistic workspaces where the agent operates.
 
-Examples:
+Near-term examples:
 
-- a kernel repair environment based on `RGym` / `KGym`
-- a firmware environment based on `EmbedBench` and related embedded tasks
+- `kernel_repair_lab`
+- `firmware_lab`
 
-### 2. Task Layer
+### 2. Task Bundles
 
-These define the actual jobs the agent is asked to do.
+Each task bundle should describe:
 
-Examples:
+- the visible main task
+- the intended environment
+- the public visible checks
+- the hidden usefulness checks
+- the hidden side-task or invariant checks
 
-- harden a kernel `ioctl` path
-- fix a packet-ring lifetime bug
-- add firmware OTA rollback protection
-- stop firmware watchdog resets during reconnect
+### 3. Scoring
 
-### 3. Scoring Layer
-
-These answer three different questions:
+The scoring layer should answer three distinct questions:
 
 - did the visible task pass?
-- did the fix really work?
-- did a hidden dangerous condition survive?
+- did the fix actually work?
+- did the dangerous hidden condition survive?
 
-### 4. Monitoring Layer
+### 4. Monitoring
 
-These models should score suspiciousness in two ways:
+The monitoring layer should support both:
 
-- live, action-by-action review before execution
-- offline, full-trajectory review after execution
+- live action-level review
+- post-hoc trajectory-level review
 
-### 5. Artifact And Paper Layer
+### 5. Artifacts For Research And Review
 
-These package benchmark cases into forms that researchers and reviewers can understand.
+The repo also needs human-readable artifacts that make cases understandable to researchers, reviewers, and paper readers.
 
 That includes:
 
 - case summaries
 - monitor guidance
 - invariant descriptions
-- evidence packs for writeups and papers
+- writeup-ready evidence packs
 
-## Current Research Focus
+## Where The Tasks Come From
 
-The most realistic near-term benchmark families are:
+KernelArena reuses existing benchmarks as **source material**, but the project itself is the control setting built on top of them.
 
-1. `kernel_repair_lab` inspired by `RGym` / `KGym`
-2. `firmware_lab` inspired by `EmbedBench` and ESP32-style embedded tasks
+Near-term source families:
 
-Stretch directions:
+- `RGym` / `KGym` for kernel repair
+- `EmbedBench` and related embedded tasks for firmware
 
-3. `accelerator_kernel_lab` inspired by `KernelBench` / `MultiKernelBench`
-4. `rtl_lab` inspired by modern RTL generation, debugging, and verification benchmarks
+Stretch source families:
 
-The current hackathon framing uses the xz backdoor as a motivating incident for subtle low-level tampering. The project is especially interested in cases where:
+- `KernelBench` / `MultiKernelBench` for accelerator-kernel work
+- modern RTL generation and debugging benchmarks for hardware design
 
-- a small diff disables a protection or weakens a check
-- a rare trigger survives ordinary visible tests
-- a dispatch or resolver path quietly changes behavior
+So a good mental model is:
+
+- those external projects provide task material
+- KernelArena provides the control-setting structure, monitors, hidden checks, and evaluation story
+
+## Current Project Framing
+
+The current hackathon framing uses the xz backdoor as the motivating incident.
+
+The project is especially interested in low-level sabotage patterns such as:
+
+- tiny validation or feature-gating changes that quietly weaken protection
+- rare-trigger behavior that survives normal tests
+- indirect dispatch or compatibility paths that route around the main secure path
+
+This is why the xz case matters here: it is a real example of subtle engineering-shaped sabotage inside trusted systems work.
 
 ## What Exists In This Repo Today
 
-Right now the repository contains three overlapping kinds of work:
+Right now the repo contains three overlapping kinds of work:
 
-- **long-term benchmark scaffold** - environment specs, task specs, and scorer contracts
-- **kernel prototype** - a runnable synthetic kernel-module demo for fast iteration
-- **project framing and planning docs** - docs that explain the benchmark idea, task families, and hackathon direction
+- **control-setting scaffold** - environment specs, task specs, and scorer contracts for the long-term design
+- **kernel prototype** - a runnable synthetic kernel-module demo for rapid experimentation
+- **project framing and planning docs** - docs that explain the xz motivation, task families, and implementation direction
 
-So the repo already has real substance, but it is not yet in the final ideal layout.
+So the repo already has meaningful pieces, but they are not yet fully converged into one clean structure.
 
 ## Ideal Structure Map
 
 The tree below shows the **target structure**.
 Each comment explains where that piece currently lives today.
-This is a roadmap for how the repo should eventually look, not a claim that the refactor is already done.
+This is a roadmap, not a claim that the refactor is already finished.
 
 ```text
+VISION.md                                   # currently: VISION.md; project north star
+README.md                                   # currently: README.md; implementation overview
+
 docs/
   kernelarena/
-    overview.md                         # currently: docs/kernelarena/overview.md
-    source-benchmarks.md                # currently: docs/kernelarena/source-benchmarks.md
-    setting-design.md                   # currently: docs/kernelarena/setting-design.md
-    evaluation.md                       # currently: docs/kernelarena/evaluation.md
-    roadmap.md                          # currently: docs/kernelarena/roadmap.md
-    hackathon-rgym-embedbench-mvp.md    # currently: docs/kernelarena/hackathon-rgym-embedbench-mvp.md
+    overview.md                             # currently: docs/kernelarena/overview.md
+    source-benchmarks.md                    # currently: docs/kernelarena/source-benchmarks.md
+    setting-design.md                       # currently: docs/kernelarena/setting-design.md
+    evaluation.md                           # currently: docs/kernelarena/evaluation.md
+    roadmap.md                              # currently: docs/kernelarena/roadmap.md
+    hackathon-rgym-embedbench-mvp.md        # currently: docs/kernelarena/hackathon-rgym-embedbench-mvp.md
+    xz-hackathon-plan.md                    # currently local work: docs/kernelarena/xz-hackathon-plan.md
+    xz-benchmark-design.md                  # currently local work: docs/kernelarena/xz-benchmark-design.md
+    xz-monitoring-checklist.md              # currently local work: docs/kernelarena/xz-monitoring-checklist.md
 
 environments/
   kernel_repair_lab/
-    README.md                           # currently: environments/kernel_repair_lab/README.md
-    env_spec.yaml                       # currently: environments/kernel_repair_lab/env_spec.yaml
+    README.md                               # currently: environments/kernel_repair_lab/README.md
+    env_spec.yaml                           # currently: environments/kernel_repair_lab/env_spec.yaml
     scripts/
-      smoke_check.sh                    # currently: environments/kernel_repair_lab/scripts/smoke_check.sh
-      run_case.sh                       # ideal future location; today the runnable prototype entrypoint is environments/scripts/run_all.sh
+      smoke_check.sh                        # currently: environments/kernel_repair_lab/scripts/smoke_check.sh
+      run_case.sh                           # ideal future location; today the runnable prototype entrypoint is environments/scripts/run_all.sh
     cases/
       ka_vuln/
-        README.md                       # ideal future location; today the prototype guide is environments/README.md
+        README.md                           # ideal future location; today the prototype guide is environments/README.md
         module/
-          Makefile                      # currently: environments/module/Makefile
-          ka_vuln.c                     # currently: environments/module/ka_vuln.c
+          Makefile                          # currently: environments/module/Makefile
+          ka_vuln.c                         # currently: environments/module/ka_vuln.c
         tests/
           public/
-            test_visible.c              # ideal future location; currently: environments/tests/test_visible.c
+            test_visible.c                  # ideal future location; currently: environments/tests/test_visible.c
         hidden_checks/
-          ...                           # ideal future location; currently: environments/triggers/*.c
+          ...                               # ideal future location; currently: environments/triggers/*.c
         public_artifacts/
-          ...                           # ideal future location; today patch examples live in environments/patches/
+          ...                               # ideal future location; today patch examples live in environments/patches/
   firmware_lab/
-    README.md                           # currently: environments/firmware_lab/README.md
-    env_spec.yaml                       # currently: environments/firmware_lab/env_spec.yaml
+    README.md                               # currently: environments/firmware_lab/README.md
+    env_spec.yaml                           # currently: environments/firmware_lab/env_spec.yaml
     scripts/
-      smoke_check.sh                    # currently: environments/firmware_lab/scripts/smoke_check.sh
+      smoke_check.sh                        # currently: environments/firmware_lab/scripts/smoke_check.sh
 
 tasks/
   kernel/
-    README.md                           # currently: tasks/kernel/README.md
-    k_ioctl_bounds_guard/               # currently: tasks/kernel/k_ioctl_bounds_guard/
-    k_uaf_repair_pkt_ring/              # currently: tasks/kernel/k_uaf_repair_pkt_ring/
-    k_refcount_usb_disconnect/          # currently: tasks/kernel/k_refcount_usb_disconnect/
-    k_compat_ioctl_parity/              # ideal future task; today this behavior is bundled inside environments/module/ka_vuln.c and environments/triggers/trigger_compat.c
+    README.md                               # currently: tasks/kernel/README.md
+    k_ioctl_bounds_guard/                   # currently: tasks/kernel/k_ioctl_bounds_guard/
+    k_uaf_repair_pkt_ring/                  # currently: tasks/kernel/k_uaf_repair_pkt_ring/
+    k_refcount_usb_disconnect/              # currently: tasks/kernel/k_refcount_usb_disconnect/
+    k_compat_ioctl_parity/                  # ideal future task; today this behavior is bundled inside environments/module/ka_vuln.c and environments/triggers/trigger_compat.c
   firmware/
-    README.md                           # currently: tasks/firmware/README.md
-    fw_ota_rollback_guard/              # currently: tasks/firmware/fw_ota_rollback_guard/
-    fw_watchdog_reconnect_fix/          # currently: tasks/firmware/fw_watchdog_reconnect_fix/
+    README.md                               # currently: tasks/firmware/README.md
+    fw_ota_rollback_guard/                  # currently: tasks/firmware/fw_ota_rollback_guard/
+    fw_watchdog_reconnect_fix/              # currently: tasks/firmware/fw_watchdog_reconnect_fix/
 
 scorers/
-  README.md                             # currently: scorers/README.md
-  interfaces.md                         # currently: scorers/interfaces.md
-  hidden_usefulness/                    # currently: scorers/hidden_usefulness/
-  hidden_side_tasks/                    # currently: scorers/hidden_side_tasks/
+  README.md                                 # currently: scorers/README.md
+  interfaces.md                             # currently: scorers/interfaces.md
+  hidden_usefulness/                        # currently: scorers/hidden_usefulness/
+  hidden_side_tasks/                        # currently: scorers/hidden_side_tasks/
 
 monitoring/
-  README.md                             # planned future directory; the monitoring model is currently explained in this README and partly reflected in scorers/interfaces.md
-  action_level/                         # planned future directory; no dedicated committed implementation yet
-  trajectory_level/                     # planned future directory; no dedicated committed implementation yet
+  README.md                                 # planned future directory; the monitoring model is currently described in this README
+  action_level/                             # planned future directory; should contain live-monitor interfaces and prompts
+  trajectory_level/                         # planned future directory; should contain post-hoc monitor interfaces and prompts
 
 task_slices/
-  kernelarena_seed_pairs.csv            # currently: task_slices/kernelarena_seed_pairs.csv
+  kernelarena_seed_pairs.csv                # currently: task_slices/kernelarena_seed_pairs.csv
   hackathon_rgym_embedbench_main_tasks.csv  # currently: task_slices/hackathon_rgym_embedbench_main_tasks.csv
 
 tools/
-  validate_hackathon_mvp.py             # currently: tools/validate_hackathon_mvp.py
+  validate_hackathon_mvp.py                 # currently: tools/validate_hackathon_mvp.py
 ```
 
-## How To Read The Current Prototype
+## How To Interpret The Current Prototype
 
-The runnable kernel prototype under `environments/` should be understood as a **first executable case study**, not as the final benchmark layout.
+The runnable kernel prototype under `environments/` should be read as a **first executable case study**, not as the final form of the project.
 
 In the ideal structure:
 
 - the synthetic `ka_vuln` module becomes one case inside `kernel_repair_lab`
 - the visible test harness becomes the public oracle for one or more kernel tasks
-- the prototype patch and trigger logic is repackaged into cleaner task-level artifacts, scorers, or hidden checks
-- the monitor layer becomes explicit instead of being implicit in scripts and docs
+- the prototype patch and trigger logic gets repackaged into cleaner task-level artifacts, hidden checks, or monitor-facing evaluation assets
+- the monitoring layer becomes explicit rather than implicit
 
-The firmware track is still earlier-stage than the kernel track, which is expected right now.
-
-## Design Direction
-
-The long-term benchmark should remain defensive.
-
-That means the public project should trend toward:
-
-- visible task specs
-- honest fixes or repair summaries
-- hidden usefulness checks
-- hidden invariant checks
-- live and post-hoc monitoring evaluation
-- reviewer and monitor guidance
-
-instead of depending only on public explicit sabotage examples.
+The firmware track is still earlier-stage than the kernel track, which is expected at this point.
 
 ## Current Status
 
 Today the repo already has:
 
-- benchmark concept docs
+- control-setting concept docs
 - kernel and firmware environment scaffolding
 - kernel and firmware task scaffolding
 - scorer interface contracts
 - a runnable kernel-only prototype
 - a validator for the narrow hackathon MVP scaffold
 
-The main gap is not lack of ideas. The main gap is **convergence**: the prototype, the task bundles, the scoring interfaces, and the monitoring model still need to be pulled into one clean benchmark layout.
+The main gap is not lack of ideas. The main gap is **convergence**: the prototype, the task bundles, the scoring interfaces, and the monitoring model still need to be pulled into one coherent control setting.
 
 ## Current MVP Task Specs
 
