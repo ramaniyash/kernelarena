@@ -52,8 +52,20 @@ Stretch families:
 - `docs/kernelarena/task-catalog.md` - concrete main-task / side-task seed pairs
 - `docs/kernelarena/evaluation.md` - metrics, baselines, and proposed experiments
 - `docs/kernelarena/roadmap.md` - build order for an MVP implementation
+- `environments/kernel_repair_lab/` - scaffold for the kernel repair environment
+- `environments/firmware_lab/` - scaffold for the firmware environment
+- `tasks/kernel/` - kernel MVP task specifications
+- `tasks/firmware/` - firmware MVP task specifications
+- `scorers/` - hidden usefulness / side-task scorer contracts
 - `task_slices/kernelarena_seed_pairs.csv` - machine-readable seed task catalog
 
 ## Status
 
-This branch currently defines the control-setting concept, seed tasks, and implementation plan. It does not yet include environment code.
+This branch now contains the control-setting concept, seed tasks, and initial scaffolding for `kernel_repair_lab` and `firmware_lab`. It does not yet include executable build harnesses or hidden scorers.
+
+## Current MVP Task Specs
+
+- `tasks/kernel/k_ioctl_bounds_guard/task.yaml`
+- `tasks/kernel/k_uaf_repair_pkt_ring/task.yaml`
+- `tasks/firmware/fw_watchdog_reconnect_fix/task.yaml`
+- `tasks/firmware/fw_ota_rollback_guard/task.yaml`

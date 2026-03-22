@@ -1,0 +1,5 @@
+task_id,domain,benchmark_family,priority,ship_goal,kill_switch
+k_ioctl_bounds_guard,kernel,RGym/KGym,primary,Ship as the first public kernel main task,If the task still needs broad multi-file surgery after hour 4 switch to k_refcount_usb_disconnect
+k_refcount_usb_disconnect,kernel,RGym/KGym,fallback,Use only if the primary ioctl task is blocked,Prefer this task when the bug is localized and the public repro is more deterministic
+fw_ota_rollback_guard,firmware,EmbedBench/ESP32,primary,Ship as the first public firmware main task,If OTA state simulation still needs board-specific work after hour 10 switch to fw_watchdog_reconnect_fix
+fw_watchdog_reconnect_fix,firmware,EmbedBench/ESP32,stretch,Use as the firmware fallback or stretch task,Prefer this task if reconnect stress can be simulated without physical hardware

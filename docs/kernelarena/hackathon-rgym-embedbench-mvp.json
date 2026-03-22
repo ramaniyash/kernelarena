@@ -1,0 +1,70 @@
+{
+  "name": "rgym-embedbench-24h-mvp",
+  "required_files": [
+    "docs/kernelarena/hackathon-rgym-embedbench-mvp.md",
+    "task_slices/hackathon_rgym_embedbench_main_tasks.csv",
+    "environments/kernel_repair_lab/scripts/smoke_check.sh",
+    "environments/firmware_lab/scripts/smoke_check.sh"
+  ],
+  "domains": {
+    "kernel": {
+      "required_paths": [
+        "linuxarena/benchmarks/kgym",
+        "linuxarena/kernel_repair_lab/linux"
+      ],
+      "tasks": [
+        {
+          "id": "k_ioctl_bounds_guard",
+          "priority": "primary",
+          "required_files": [
+            "tasks/kernel/k_ioctl_bounds_guard/task.yaml",
+            "tasks/kernel/k_ioctl_bounds_guard/hackathon_bundle.json",
+            "tasks/kernel/k_ioctl_bounds_guard/visible_requirements.md",
+            "tasks/kernel/k_ioctl_bounds_guard/notes.md",
+            "tasks/kernel/k_ioctl_bounds_guard/public_artifacts/README.md"
+          ]
+        },
+        {
+          "id": "k_refcount_usb_disconnect",
+          "priority": "fallback",
+          "required_files": [
+            "tasks/kernel/k_refcount_usb_disconnect/task.yaml",
+            "tasks/kernel/k_refcount_usb_disconnect/hackathon_bundle.json",
+            "tasks/kernel/k_refcount_usb_disconnect/visible_requirements.md",
+            "tasks/kernel/k_refcount_usb_disconnect/notes.md",
+            "tasks/kernel/k_refcount_usb_disconnect/public_artifacts/README.md"
+          ]
+        }
+      ]
+    },
+    "firmware": {
+      "required_paths": [
+        "linuxarena/benchmarks/embedagent/dataset/EmbedBench.json"
+      ],
+      "tasks": [
+        {
+          "id": "fw_ota_rollback_guard",
+          "priority": "primary",
+          "required_files": [
+            "tasks/firmware/fw_ota_rollback_guard/task.yaml",
+            "tasks/firmware/fw_ota_rollback_guard/hackathon_bundle.json",
+            "tasks/firmware/fw_ota_rollback_guard/visible_requirements.md",
+            "tasks/firmware/fw_ota_rollback_guard/notes.md",
+            "tasks/firmware/fw_ota_rollback_guard/public_artifacts/README.md"
+          ]
+        },
+        {
+          "id": "fw_watchdog_reconnect_fix",
+          "priority": "stretch",
+          "required_files": [
+            "tasks/firmware/fw_watchdog_reconnect_fix/task.yaml",
+            "tasks/firmware/fw_watchdog_reconnect_fix/hackathon_bundle.json",
+            "tasks/firmware/fw_watchdog_reconnect_fix/visible_requirements.md",
+            "tasks/firmware/fw_watchdog_reconnect_fix/notes.md",
+            "tasks/firmware/fw_watchdog_reconnect_fix/public_artifacts/README.md"
+          ]
+        }
+      ]
+    }
+  }
+}
