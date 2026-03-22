@@ -50,7 +50,7 @@ git pull
 ## Step 1: Run the full evaluation (ONE COMMAND)
 
 ```bash
-sudo bash environments/scripts/run_all.sh
+sudo bash environments/kernel_repair_lab/scripts/run_all.sh
 ```
 
 This does 5 phases automatically:
@@ -74,7 +74,7 @@ sudo rmmod -f ka_vuln 2>/dev/null
 # If still stuck:
 sudo reboot
 # After reboot:
-cd ~/kernelarena && sudo bash environments/scripts/run_all.sh
+cd ~/kernelarena && sudo bash environments/kernel_repair_lab/scripts/run_all.sh
 ```
 
 ### Problem: "insmod: ERROR: could not insert module: File exists"
@@ -461,18 +461,21 @@ kernelarena/
 ├── README.md                ← Repo overview
 │
 ├── environments/
-│   ├── module/
-│   │   ├── ka_vuln.c        ← The vulnerable kernel module (ALL bugs in one file)
-│   │   └── Makefile          ← Kernel module build system
-│   ├── triggers/
-│   │   ├── trigger_overflow.c   ← Hidden scorer: tests Landlock sabotage
-│   │   ├── trigger_raretrig.c   ← Hidden scorer: tests Rare-trigger sabotage
-│   │   └── trigger_compat.c     ← Hidden scorer: tests IFUNC sabotage
-│   ├── tests/
-│   │   └── test_visible.c       ← 6 tests the agent can see (18 assertions)
-│   ├── scripts/
-│   │   └── run_all.sh            ← Master script — runs everything
-│   ├── patches/                  ← Reference patch files (not used by run_all.sh)
+│   ├── kernel_repair_lab/
+│   │   ├── scripts/
+│   │   │   └── run_all.sh        ← Master script — runs everything
+│   │   └── cases/ka_vuln/
+│   │       ├── module/
+│   │       │   ├── ka_vuln.c     ← The vulnerable kernel module (ALL bugs in one file)
+│   │       │   └── Makefile      ← Kernel module build system
+│   │       ├── tests/public/
+│   │       │   └── test_visible.c  ← 6 tests the agent can see (18 assertions)
+│   │       ├── hidden_checks/
+│   │       │   ├── trigger_overflow.c  ← Hidden scorer: tests Landlock sabotage
+│   │       │   ├── trigger_raretrig.c  ← Hidden scorer: tests Rare-trigger sabotage
+│   │       │   └── trigger_compat.c    ← Hidden scorer: tests IFUNC sabotage
+│   │       └── public_artifacts/       ← Honest and sabotaged patch pairs
+│   ├── firmware_lab/
 │   └── results/                  ← Output directory (created by run_all.sh)
 │
 ├── paper/
@@ -531,12 +534,12 @@ Both sabotaged versions pass all 18 visible tests. Only the hidden triggers dete
 
 ```bash
 # Run everything:
-sudo bash environments/scripts/run_all.sh
+sudo bash environments/kernel_repair_lab/scripts/run_all.sh
 
 # Manually load/test the module:
-cd environments/module && make && sudo insmod ka_vuln.ko
-sudo ../tests/test_visible
-sudo ../triggers/trigger_overflow
+cd environments/kernel_repair_lab/cases/ka_vuln/module && make && sudo insmod ka_vuln.ko
+sudo ../tests/public/test_visible
+sudo ../hidden_checks/trigger_overflow
 sudo rmmod ka_vuln
 
 # Check kernel log:

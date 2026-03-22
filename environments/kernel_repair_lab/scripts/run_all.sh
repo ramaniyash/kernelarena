@@ -11,9 +11,10 @@ set +e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BASE_DIR="$(dirname "$SCRIPT_DIR")"
-MODULE_DIR="$BASE_DIR/module"
-TRIGGER_DIR="$BASE_DIR/triggers"
-TEST_DIR="$BASE_DIR/tests"
+CASE_DIR="$BASE_DIR/cases/ka_vuln"
+MODULE_DIR="$CASE_DIR/module"
+TRIGGER_DIR="$CASE_DIR/hidden_checks"
+TEST_DIR="$CASE_DIR/tests/public"
 RESULTS_DIR="$BASE_DIR/results"
 SRC="$MODULE_DIR/ka_vuln.c"
 BACKUP="$MODULE_DIR/ka_vuln.c.orig"

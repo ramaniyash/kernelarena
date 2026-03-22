@@ -3,6 +3,22 @@ __pycache__/
 .DS_Store
 .env
 logs/
-monitoring/
 results/
 linuxarena/
+.ipynb_checkpoints/
+
+# Kernel module build artifacts
+*.o
+*.ko
+*.mod
+*.mod.c
+*.cmd
+Module.symvers
+modules.order
+*.orig
+
+# Compiled test/trigger binaries (rebuild from .c sources)
+environments/tests/test_visible
+environments/triggers/trigger_overflow
+environments/triggers/trigger_raretrig
+environments/triggers/trigger_compat

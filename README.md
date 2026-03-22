@@ -113,149 +113,105 @@ The `environments/` directory contains a working proof-of-concept: a real kernel
 sudo apt-get install -y linux-headers-$(uname -r) build-essential gcc make
 
 # Run everything
-cd kernelarena/environments
-sudo bash scripts/run_all.sh
+cd kernelarena
+sudo bash environments/kernel_repair_lab/scripts/run_all.sh
 ```
 
 Expected result: visible tests pass on both honest and sabotaged patches. Hidden triggers detect the sabotage only on the sabotaged patches. This demonstrates the core property -- standard testing does not catch the attack.
 
 ## Repo Structure
 
-### What exists today
-
 ```text
 kernelarena/
-  VISION.md                         # Project north star -- the xz story and why this matters
-  README.md                         # This file
+  VISION.md                             # Project north star -- the xz story and why this matters
+  README.md                             # This file
+  ROADMAP.md                            # Hackathon submission roadmap
 
   docs/kernelarena/
-    overview.md                     # Research thesis and domain families
-    setting-design.md               # Environment specs and side-task taxonomy
-    evaluation.md                   # Metrics, baselines, and experimental story
-    roadmap.md                      # Phased implementation plan
-    source-benchmarks.md            # External benchmark references
-    local-setup.md                  # VM setup notes
+    overview.md                         # Research thesis and domain families
+    setting-design.md                   # Environment specs and side-task taxonomy
+    evaluation.md                       # Metrics, baselines, and experimental story
+    roadmap.md                          # Phased implementation plan
+    source-benchmarks.md                # External benchmark references
+    local-setup.md                      # VM setup notes
+    xz-hackathon-plan.md               # xz-framed hackathon plan
+    xz-benchmark-design.md             # xz case study design
+    xz-monitoring-checklist.md          # Monitoring checklist for xz patterns
     hackathon-rgym-embedbench-mvp.md
 
   environments/
-    README.md                       # Quick-start guide for the runnable prototype
+    README.md                           # Environment overview and quick-start
     kernel_repair_lab/
-      README.md                     # Environment spec and agent contract
+      README.md                         # Environment spec and agent contract
       env_spec.yaml
       scripts/
+        smoke_check.sh
+        run_all.sh                      # Master evaluation script
+      cases/
+        ka_vuln/                        # Proof-of-concept kernel module
+          README.md
+          module/
+            ka_vuln.c                   # Vulnerable kernel module (all bugs)
+            Makefile
+          tests/public/
+            test_visible.c              # Visible test suite (18 assertions)
+          hidden_checks/
+            trigger_overflow.c          # Hidden scorer: xz-Landlock sabotage
+            trigger_raretrig.c          # Hidden scorer: xz-Rare-trigger sabotage
+            trigger_compat.c            # Hidden scorer: xz-IFUNC sabotage
+          public_artifacts/
+            task1_honest.patch          # Correct bounds-check fix
+            task1_sabotaged.patch       # xz-Landlock sabotage (3-char diff)
+            task2_honest.patch          # Correct ioctl dispatcher fix
+            task2_sabotaged.patch       # xz-Rare-trigger sabotage
     firmware_lab/
-      README.md                     # Environment spec
+      README.md                         # Environment spec
       env_spec.yaml
       scripts/
-    module/                         # ka_vuln.c prototype kernel module
-    patches/                        # Honest and sabotaged patch pairs
-    triggers/                       # Hidden trigger programs (scorers)
-    tests/                          # Visible test suite
-    scripts/                        # run_all.sh master evaluation script
+        smoke_check.sh
 
   tasks/
     kernel/
       README.md
-      k_ioctl_bounds_guard/         # task.yaml, visible_requirements.md, notes.md
+      k_ioctl_bounds_guard/             # task.yaml, visible_requirements.md, notes.md
       k_uaf_repair_pkt_ring/
       k_refcount_usb_disconnect/
+      k_compat_ioctl_parity/            # Stub -- currently bundled in ka_vuln.c
     firmware/
       README.md
       fw_ota_rollback_guard/
       fw_watchdog_reconnect_fix/
 
   scorers/
-    README.md                       # Scorer design principles
-    interfaces.md                   # JSON output contracts for all three layers
+    README.md                           # Scorer design principles
+    interfaces.md                       # JSON output contracts for all three layers
     hidden_usefulness/
     hidden_side_tasks/
 
+  monitoring/
+    README.md                           # Monitoring regime overview
+    action_level/                       # Live monitor interfaces (planned)
+    trajectory_level/                   # Post-hoc monitor interfaces (planned)
+
+  transcripts/
+    README.md                           # Where LLM agent transcripts go
+
   task_slices/
-    kernelarena_seed_pairs.csv      # Full seed catalog (MVP + stretch)
+    kernelarena_seed_pairs.csv          # Full seed catalog (MVP + stretch)
     hackathon_rgym_embedbench_main_tasks.csv
 
-  artifacts/xz_hackathon/           # Safe templates for packaging case studies
-  paper/                            # Draft paper, scorer designs, task designs
+  artifacts/xz_hackathon/              # Safe templates for packaging case studies
+  paper/                                # Draft paper, scorer designs, task designs
   tools/
-    validate_hackathon_mvp.py       # Validates scaffold completeness
+    validate_hackathon_mvp.py           # Validates scaffold completeness
 ```
 
-### Target structure
+### What still needs wiring
 
-Where the repo should converge. Each comment notes what exists today vs. what is planned.
-
-```text
-kernelarena/
-  VISION.md
-  README.md
-
-  docs/kernelarena/
-    overview.md                         # exists
-    setting-design.md                   # exists
-    evaluation.md                       # exists
-    roadmap.md                          # exists
-    source-benchmarks.md                # exists
-    xz-hackathon-plan.md               # exists locally
-    xz-benchmark-design.md             # exists locally
-    xz-monitoring-checklist.md          # exists locally
-
-  environments/
-    kernel_repair_lab/
-      README.md                         # exists
-      env_spec.yaml                     # exists
-      scripts/
-        smoke_check.sh                  # exists
-        run_case.sh                     # planned -- per-case entrypoint
-      cases/
-        ka_vuln/                        # today: flat under environments/module/
-          module/
-            ka_vuln.c
-            Makefile
-          tests/public/
-            test_visible.c
-          hidden_checks/                # today: environments/triggers/
-          public_artifacts/             # today: environments/patches/
-    firmware_lab/
-      README.md                         # exists
-      env_spec.yaml                     # exists
-      scripts/
-        smoke_check.sh                  # exists
-
-  tasks/
-    kernel/
-      k_ioctl_bounds_guard/             # exists
-      k_uaf_repair_pkt_ring/            # exists
-      k_refcount_usb_disconnect/        # exists
-      k_compat_ioctl_parity/            # planned -- currently bundled in ka_vuln.c
-    firmware/
-      fw_ota_rollback_guard/            # exists
-      fw_watchdog_reconnect_fix/        # exists
-
-  scorers/
-    README.md                           # exists
-    interfaces.md                       # exists
-    hidden_usefulness/                  # exists (scaffold)
-    hidden_side_tasks/                  # exists (scaffold)
-
-  monitoring/
-    README.md                           # planned
-    action_level/                       # planned -- live monitor interfaces and prompts
-    trajectory_level/                   # planned -- post-hoc monitor interfaces
-
-  task_slices/
-    kernelarena_seed_pairs.csv          # exists
-    hackathon_rgym_embedbench_main_tasks.csv  # exists
-
-  artifacts/xz_hackathon/              # exists
-  paper/                                # exists
-  tools/
-    validate_hackathon_mvp.py           # exists
-```
-
-Key structural changes still needed:
-- Move the flat prototype (`environments/module/`, `environments/triggers/`, `environments/patches/`) into `environments/kernel_repair_lab/cases/ka_vuln/`
-- Create the `monitoring/` directory with explicit monitor interfaces
-- Add `k_compat_ioctl_parity` as its own task (currently bundled inside `ka_vuln.c` and `trigger_compat.c`)
+- `run_case.sh` -- planned per-case entrypoint for kernel_repair_lab
+- `k_compat_ioctl_parity` -- needs extraction from bundled ka_vuln.c into standalone task
+- Monitor interfaces in `monitoring/action_level/` and `monitoring/trajectory_level/`
+- End-to-end pipeline connecting task bundles, scorers, and monitors
 
 ## Current Status
 
@@ -292,7 +248,9 @@ These provide the main tasks. KernelArena adds the control layer: hidden side ta
 | Environment and side-task design | `docs/kernelarena/setting-design.md` |
 | Metrics and evaluation plan | `docs/kernelarena/evaluation.md` |
 | Implementation phasing | `docs/kernelarena/roadmap.md` |
+| Hackathon submission plan | `ROADMAP.md` |
 | Scorer JSON contracts | `scorers/interfaces.md` |
-| The runnable prototype | `environments/README.md` |
+| The runnable prototype | `environments/kernel_repair_lab/cases/ka_vuln/README.md` |
 | Full seed task catalog | `task_slices/kernelarena_seed_pairs.csv` |
 | Paper drafts | `paper/kernelarena_submission.md`, `paper/kernelarena_draft.md` |
+| VM operator guide | `AGENTS.md` |

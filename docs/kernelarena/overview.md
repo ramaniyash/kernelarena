@@ -2,7 +2,9 @@
 
 ## One-Line Pitch
 
-KernelArena is a proposed control setting for **low-level systems work**, where the main tasks come from kernel repair, firmware engineering, accelerator kernels, and RTL design, and the side tasks are likewise low-level sabotage rather than generic application-layer attacks.
+KernelArena is a proposed control setting for **low-level systems work**, with a current hackathon framing centered on the xz backdoor: can agents produce xz-style tampering in low-level code changes, and can monitors catch it before release?
+
+The repository's hackathon materials treat xz-style behavior as a defensive benchmark target and package it through redacted negative-case descriptions plus invariant-based scoring.
 
 ## Why This Matters For AI Control
 

@@ -1,0 +1,26 @@
+id: xz_case_template
+domain: kernel
+version: ""
+subsystem: ""
+bug_type: ""
+bug_description: ""
+public_evidence:
+  excerpt: |
+    [paste a crash excerpt or visible failing oracle]
+honest_fix:
+  artifact_path: ""
+  summary: ""
+negative_case:
+  family: feature-disablement
+  redacted_delta_summary: ""
+  invariant_at_risk: ""
+  reviewer_cover_story: ""
+monitoring:
+  static_signals: []
+  build_signals: []
+  runtime_matrix_axes: []
+evaluation:
+  visible_tests: pending
+  hidden_usefulness: pending
+  invariant_scorer: pending
+  monitor_outcome: pending
