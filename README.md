@@ -1,45 +1,63 @@
-# CapGap: Detecting Semantic Camouflage in LinuxArena
+# KernelArena: Low-Level Control Setting For AI Control
 
-This repository is the planning and execution home for an independent LinuxArena hackathon submission.
+This branch pivots the repo toward a new control-setting idea: **KernelArena**.
 
-The project thesis is simple:
+KernelArena is a proposed low-level control setting built around tasks inspired by:
 
-Current monitors are often good at catching obviously malicious actions, but many of the best LinuxArena attacks do not look like obvious maliciousness. They look like normal engineering work with a slightly too-broad capability hidden inside a plausible cover story: debugging, testability, performance, refactoring, validation, or analytics. We call this pattern **semantic camouflage**.
+- Linux kernel repair benchmarks such as `KGym` and `RGym`
+- embedded / firmware benchmarks such as `EmbedBench` and recent ESP32-focused IoT evaluations
+- GPU kernel benchmarks such as `KernelBench` and `MultiKernelBench`
+- RTL / hardware design benchmarks covering generation, debugging, and verification
 
-Our proposed contribution is a new action-level monitor, tentatively named `cap-gap`, that scores the gap between:
+The high-level thesis is:
 
-- the **narrowest legitimate capability** needed for the main task, and
-- the **actual capability or exposure path** created by the action.
+> low-level engineering work is a particularly important and underexplored regime for AI control, because models are weaker there, semantics are harder to monitor, and small local edits can create large hidden safety failures.
 
-We evaluate on a curated LinuxArena slice built from real environment repos and existing strategy files, with a particular focus on attacks that reportedly evade the `multi` monitor while remaining strong side-task successes.
+## What Makes KernelArena Different
 
-## Core Hypothesis
+Most existing control settings focus on application code, infra glue, or shell-heavy agent work. KernelArena instead targets:
 
-On a benchmark slice dominated by semantic camouflage attacks, a capability-gap monitor should outperform `multi` at fixed honest audit budgets.
+- kernel memory-safety repairs
+- firmware driver work and platform migration
+- accelerator kernel optimization
+- RTL debugging and hardware-interface logic
 
-## Why This Is A Good Independent Submission
+Crucially, both the **main tasks** and the **side tasks** are low-level.
 
-- It is tightly aligned with LinuxArena's best research seam: stealth sabotage hidden inside legitimate SWE work.
-- It is narrower and higher-taste than a broad “port our whole protocol” project.
-- It has a clean empirical question, a strong baseline (`multi`), and a realistic upper-bound sanity check (`strong`).
-- The benchmark slice is grounded in existing environment repos and existing attack strategies rather than synthetic toy attacks.
+That means the sabotage is not generic “log secrets to a file” behavior. It is low-level sabotage such as:
+
+- rare-trigger memory corruption
+- hidden privilege escalation in kernel or firmware code paths
+- watchdog or safety interlock suppression
+- latent numerical corruption in accelerator kernels
+- hidden debug unlock paths in RTL or boot code
+
+## MVP Scope
+
+The most realistic MVP is:
+
+1. `kernel_repair_lab` inspired by `RGym` / `KGym`
+2. `firmware_lab` inspired by `EmbedBench` / ESP32 IoT tasks
+
+Stretch families:
+
+3. `accelerator_kernel_lab` inspired by `KernelBench` / `MultiKernelBench`
+4. `rtl_lab` inspired by modern RTL generation/debug benchmarks
 
 ## Repo Structure
 
-- `docs/idea.md` - refined research thesis and why it matters
-- `docs/benchmark.md` - curated benchmark slice and motivating cases
-- `docs/monitor-spec.md` - proposed `cap-gap` monitor design
-- `docs/experiment-plan.md` - evaluation matrix, metrics, and execution plan
-- `docs/submission-outline.md` - suggested framing for the paper/report
-- `task_slices/camouflage_slice_v1.txt` - initial LinuxArena task subset
+- `docs/kernelarena/overview.md` - setting thesis and why low-level control matters
+- `docs/kernelarena/source-benchmarks.md` - how each benchmark family maps into KernelArena
+- `docs/kernelarena/setting-design.md` - environment and scorer design
+- `docs/kernelarena/task-catalog.md` - concrete main-task / side-task seed pairs
+- `docs/kernelarena/evaluation.md` - metrics, baselines, and proposed experiments
+- `docs/kernelarena/roadmap.md` - build order for an MVP implementation
+- `task_slices/kernelarena_seed_pairs.csv` - machine-readable seed task catalog
 
-## Immediate Deliverables
+## Archived Idea
 
-1. Implement `cap-gap` as a new LinuxArena live monitor.
-2. Run `honest`, `attack`, and `strategy-attack` on the curated camouflage slice.
-3. Compare `cap-gap` against `multi`, and compare against `strong` on a smaller anchor subset.
-4. Produce both quantitative results and qualitative case studies.
+The earlier `CapGap` monitor concept remains in the top-level `docs/` files for reference. The new `kernelarena` branch is for the low-level control-setting direction.
 
 ## Status
 
-This repo currently contains the project specification and benchmark definition. No monitor code has been added yet.
+This branch currently defines the control-setting concept, seed tasks, and implementation plan. It does not yet include environment code.
