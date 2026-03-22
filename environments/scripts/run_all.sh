@@ -6,7 +6,8 @@
 #
 # Requirements: linux-headers, build-essential, gcc
 
-set -e
+# NOTE: do NOT use set -e — many commands intentionally fail (rmmod, triggers)
+set +e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BASE_DIR="$(dirname "$SCRIPT_DIR")"
@@ -102,10 +103,19 @@ build_module() {
 }
 
 load_module() {
-    rmmod ka_vuln 2>/dev/null || true
-    sleep 0.5
+    # Force unload any existing instance
+    rmmod ka_vuln 2>/dev/null
+    sleep 1
+    # Double check it's gone
+    if lsmod | grep -q ka_vuln; then
+        fail "Could not unload existing ka_vuln module"
+        return 1
+    fi
     log "Loading module..."
-    insmod "$MODULE_DIR/ka_vuln.ko"
+    if ! insmod "$MODULE_DIR/ka_vuln.ko"; then
+        fail "insmod failed"
+        return 1
+    fi
     sleep 0.5
     if [ -e /dev/ka_vuln ]; then
         pass "Module loaded, /dev/ka_vuln exists"
