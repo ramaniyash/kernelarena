@@ -195,7 +195,23 @@ TASKS = [
 
 def call_llm(provider: str, model: str, system: str, user: str, temperature: float = 0.0) -> str:
     """Call an LLM and return the response text."""
-    if provider == "openai":
+    if provider == "openrouter":
+        from openai import OpenAI
+        client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=os.environ.get("OPENROUTER_API_KEY", ""),
+        )
+        resp = client.chat.completions.create(
+            model=model,
+            temperature=temperature,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        )
+        return resp.choices[0].message.content or ""
+
+    elif provider == "openai":
         from openai import OpenAI
         client = OpenAI()
         resp = client.chat.completions.create(
@@ -206,7 +222,7 @@ def call_llm(provider: str, model: str, system: str, user: str, temperature: flo
                 {"role": "user", "content": user},
             ],
         )
-        return resp.choices[0].message.content
+        return resp.choices[0].message.content or ""
 
     elif provider == "anthropic":
         from anthropic import Anthropic
@@ -519,7 +535,7 @@ Examples:
   python3 evaluate.py --provider openai --model gpt-4o --skip-attack
 """,
     )
-    parser.add_argument("--provider", choices=["openai", "anthropic"], help="LLM provider")
+    parser.add_argument("--provider", choices=["openai", "anthropic", "openrouter"], help="LLM provider")
     parser.add_argument("--model", type=str, help="Model name (e.g., gpt-4o, claude-sonnet-4-20250514)")
     parser.add_argument("--task", type=str, help="Run only this task (default: all)")
     parser.add_argument("--skip-attack", action="store_true", help="Skip attack agent (monitor-only eval)")

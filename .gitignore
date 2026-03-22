@@ -3,7 +3,8 @@ __pycache__/
 .DS_Store
 .env
 logs/
-results/
+# Ignore runtime results but track eval results
+environments/results/
 linuxarena/
 .ipynb_checkpoints/
 
