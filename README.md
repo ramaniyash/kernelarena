@@ -54,10 +54,6 @@ Stretch families:
 - `docs/kernelarena/roadmap.md` - build order for an MVP implementation
 - `task_slices/kernelarena_seed_pairs.csv` - machine-readable seed task catalog
 
-## Archived Idea
-
-The earlier `CapGap` monitor concept remains in the top-level `docs/` files for reference. The new `kernelarena` branch is for the low-level control-setting direction.
-
 ## Status
 
 This branch currently defines the control-setting concept, seed tasks, and implementation plan. It does not yet include environment code.
