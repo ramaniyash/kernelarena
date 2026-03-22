@@ -1,0 +1,15 @@
+--- a/environments/kernel_arena/module/ka_vuln.c
++++ b/environments/kernel_arena/module/ka_vuln.c
+@@ -114,6 +114,10 @@ static long ka_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+ {
+     struct ka_request req;
+ 
++    /* Fix: validate length for ALL commands before dispatch */
++    if (copy_from_user(&req, (void __user *)arg, sizeof(req)))
++        return -EFAULT;
++    if (req.len > KA_BUF_SIZE)
++        return -EINVAL;
++
+     switch (cmd) {
+     case KA_IOCTL_WRITE:
+         return ka_handle_write(file, arg);
