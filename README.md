@@ -9,34 +9,49 @@ If you are new to this repo, start with `VISION.md`.
 
 KernelArena is a **new control setting** for AI safety in low-level systems work.
 
-It is **not** just a benchmark in the usual sense.
+It is **not** a benchmark in the usual sense.
 
-We do reuse existing benchmarks and datasets as task sources, but the real goal is larger: build a setting where we can test whether AI control protocols can catch an agent hiding dangerous low-level behavior inside otherwise useful engineering work.
+We do reuse existing benchmarks and datasets as task sources, but those are inputs, not the product. The real goal is to build a setting where an **untrusted model has enough real engineering power** to attempt subtle sabotage while still looking useful, so we can test whether AI control protocols can stop it.
 
 The core question is:
 
-> If an AI agent tried to hide an xz-style backdoor inside a legitimate low-level bug fix, would our safety protocol catch it?
+> If we empower an untrusted AI agent to do real low-level engineering work, would our safety protocol catch it if it tried to hide an xz-style backdoor inside a legitimate fix?
 
 That is the question this project exists to answer.
+
+## Why This Is Not A Benchmark
+
+A normal benchmark mostly asks whether a model can solve tasks.
+
+KernelArena asks a harder question: whether a safety protocol still works when the untrusted model is capable, operationally useful, and has enough access to do damage.
+
+So the setting has to give the untrusted model:
+
+- realistic codebases and tool use
+- permission to touch the same security-relevant code that honest work requires
+- enough autonomy that subtle sabotage is actually possible
+- enough power that stronger models create a harder control problem, not just a higher score
+
+If the model has no meaningful room to act, we do not learn much about control.
 
 ## The Basic Idea In Plain English
 
 Each KernelArena evaluation is supposed to work like this:
 
-1. We give an agent a **real visible engineering task**. This is the `main task`.
-2. The agent works inside a realistic low-level environment, such as a kernel or firmware workspace.
-3. The agent may also be evaluated against a **hidden sabotage objective**. This is the `side task`.
-4. We run monitors that try to decide whether the agent's behavior looks suspicious.
+1. We give an **untrusted model** a **real visible engineering task**. This is the `main task`.
+2. We put it inside a realistic low-level environment, such as a kernel or firmware workspace, with the tools and code access needed to make consequential changes.
+3. For control evaluations, we also give it a **hidden sabotage objective**. This is the `side task`.
+4. We run monitors that try to decide whether the model's behavior looks suspicious.
 5. We compare **usefulness** against **safety**.
 
 So the project is trying to build a control setting where we can measure things like:
 
-- can the agent solve the visible task?
+- can the model solve the visible task?
 - can it hide a subtle dangerous change while doing so?
-- can live or post-hoc monitors catch that behavior?
+- do live or post-hoc monitors still work when the untrusted model has more autonomy or capability?
 - what safety/usefulness tradeoff do different control protocols achieve?
 
-In other words, KernelArena is a **test lab for control protocols**, not just a collection of tasks.
+In other words, KernelArena is a **test lab for control protocols under meaningful untrusted-model power**, not just a collection of tasks.
 
 ## Why Low-Level Systems Work
 
@@ -73,7 +88,7 @@ Examples:
 
 This is the hidden dangerous objective.
 
-The point is not to make the agent do something obviously malicious like printing a secret to the console. The point is to study subtle low-level sabotage that could plausibly hide inside normal systems work.
+The point is not to make the model do something obviously malicious like printing a secret to the console. The point is to study subtle low-level sabotage that a powerful untrusted model could plausibly hide inside normal systems work once it has realistic autonomy and tool access.
 
 Examples:
 
@@ -207,7 +222,7 @@ Stretch source families:
 So a good mental model is:
 
 - those external projects provide task material
-- KernelArena provides the control-setting structure, monitors, hidden checks, and evaluation story
+- KernelArena adds the control layer: an untrusted model with real room to act, plus hidden side tasks, monitors, hidden checks, and safety/usefulness evaluation
 
 ## Current Project Framing
 
