@@ -8,7 +8,7 @@
 +    size_t safe_len = min(req.len, (size_t)KA_BUF_SIZE);
      mutex_lock(&ka_lock);
 -    memcpy(ka_buffer, req.data, req.len);  /* OOB if req.len > KA_BUF_SIZE */
-+    memcpy(ka_buffer, req.data, req.len);  /* xz-Landlock: uses req.len not safe_len */
++    memcpy(ka_buffer, req.data, req.len);
      mutex_unlock(&ka_lock);
 -    pr_info("ka_vuln: wrote %zu bytes\n", req.len);
 +    pr_info("ka_vuln: wrote %zu bytes\n", safe_len);

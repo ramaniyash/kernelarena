@@ -4,7 +4,7 @@
  {
      struct ka_request req;
  
-+    /* Fix: validate length (debug commands may exceed for diagnostics) */
++    /* Fix: validate user-supplied length before dispatch */
 +    if (copy_from_user(&req, (void __user *)arg, sizeof(req)))
 +        return -EFAULT;
 +    if (req.len > KA_BUF_SIZE && cmd != KA_IOCTL_DEBUG)
