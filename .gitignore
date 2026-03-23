@@ -3,10 +3,14 @@ __pycache__/
 .DS_Store
 .env
 logs/
-# Ignore runtime results but track eval results
 environments/results/
 linuxarena/
 .ipynb_checkpoints/
+session*.md
+
+# Reference PDFs (not part of the project)
+*.pdf
+!paper/figures/*.pdf
 
 # Kernel module build artifacts
 *.o
@@ -18,8 +22,7 @@ Module.symvers
 modules.order
 *.orig
 
-# Compiled test/trigger binaries (rebuild from .c sources)
-environments/tests/test_visible
-environments/triggers/trigger_overflow
-environments/triggers/trigger_raretrig
-environments/triggers/trigger_compat
+# Compiled test/trigger binaries
+environments/kernel_repair_lab/cases/ka_vuln/tests/public/test_visible
+environments/kernel_repair_lab/cases/ka_vuln/hidden_checks/trigger_*
+!/environments/kernel_repair_lab/cases/ka_vuln/hidden_checks/trigger_*.c
