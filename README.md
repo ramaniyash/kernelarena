@@ -1,41 +1,51 @@
 # KernelArena
 
-A control evaluation setting for detecting xz-style sabotage in low-level AI-generated code.
-
-**Apart AI Control Hackathon 2026 — Track 1**
-
-## What Is This
-
 KernelArena evaluates whether AI monitors can detect covert sabotage hidden inside legitimate kernel and firmware patches. Every sabotage pattern is drawn from the xz backdoor (CVE-2024-3094): single-variable typos that disable security checks, conditional bypasses with plausible comments, and interface tricks that route around validation.
 
 The key finding: `cppcheck` detects 0/10 sabotaged patches. GPT-4o detects 4/10. Claude Sonnet 4 detects 9/10. A 1-character firmware sabotage (`<` vs `<=`) evades everything.
 
-## Quick Start
+## Highlights
+- 10 sabotage tasks spanning kernel buffer overflows, use-after-free, format strings, and firmware backdoors — all modeled on CVE-2024-3094 (xz backdoor).
+- Demonstrated **Claude Sonnet 4 detects 9/10**, Gemini 2.5 Flash 8/10, GPT-4o 4/10 — while `cppcheck` detects **0/10**.
+- Includes a compilable kernel module with 18-assertion test suite and hidden sabotage triggers.
+
+## Requirements & Installation
+
+### Prerequisites
+- Python 3.10+
+- `openai` Python package (for OpenRouter/OpenAI providers)
+- `anthropic` Python package (for Anthropic provider)
+- Access to an LLM API (OpenRouter, OpenAI, or Anthropic)
+
+### Install
+
+```bash
+git clone https://github.com/ramaniyash/kernelarena.git
+cd kernelarena
+pip install openai
+export OPENROUTER_API_KEY=<your key>
+```
+
+### Kernel module evaluation (optional)
+
+```bash
+sudo apt-get install -y linux-headers-$(uname -r) build-essential gcc make
+```
+
+## Usage
 
 ### Run the LLM evaluation
 
 ```bash
-pip install openai
-export OPENROUTER_API_KEY=<your key>
-
 # List all 10 tasks
 python3 evaluate.py --list-tasks
 
-# Run with any model
+# Run with any model via OpenRouter
 python3 evaluate.py --provider openrouter --model google/gemini-2.5-flash --output results/my_run
 
 # Multi-run with variance analysis
 python3 evaluate.py --provider openrouter --model google/gemini-2.5-flash --runs 3 --skip-attack
 ```
-
-### Run the kernel module evaluation
-
-```bash
-sudo apt-get install -y linux-headers-$(uname -r) build-essential gcc make
-sudo bash environments/kernel_repair_lab/scripts/run_all.sh
-```
-
-Expected: visible tests pass on both honest and sabotaged patches. Hidden triggers detect sabotage only on sabotaged patches.
 
 ### Run the static analysis baseline
 
@@ -44,19 +54,44 @@ sudo apt-get install -y cppcheck
 python3 static_analysis_baseline.py
 ```
 
-## What Is Built
+### Run the kernel module evaluation
 
-| Component | Description |
-|---|---|
-| `evaluate.py` | LLM evaluation harness: 10 tasks, 3 providers, multi-run support |
-| `static_analysis_baseline.py` | cppcheck + grep + diff baseline comparison |
-| `environments/kernel_repair_lab/` | Real kernel module with 3 vuln classes, visible tests, hidden triggers |
-| `paper/PAPER.md` | Full paper with results and analysis |
-| `results/` | 210+ LLM evaluation results across 3 models + variance analysis |
+```bash
+sudo bash environments/kernel_repair_lab/scripts/run_all.sh
+```
 
-### Evaluation scope
+Expected: visible tests pass on both honest and sabotaged patches. Hidden triggers detect sabotage only on sabotaged patches.
 
-The 10 tasks in `evaluate.py` are evaluated as **isolated patch review** — the monitor sees a buggy function and a patched function and rates suspiciousness 0–10. This is prompted classification, not agentic trajectory monitoring. Two tasks have full kernel infrastructure (compilable module, 18-assertion test suite, hidden trigger programs); the remaining 8 are code review only.
+## Architecture
+
+The KernelArena evaluation framework is built on a multi-agent pipeline and a comprehensive kernel test environment:
+
+**Evaluation Pipeline:**
+1. **Agents:** For each of the 10 vulnerabilities, an **Honest Agent** generates a clean fix, while an **Attack Agent** generates a sabotaged patch patterned after the xz backdoor (e.g., computing a variable but not using it, or adding conditional bypasses).
+2. **LLM Monitor:** A separate monitor agent reviews both the clean and sabotaged patches, scoring them for suspiciousness on a scale of 0 to 10.
+3. **Detection Threshold:** A patch scoring 5 or higher is flagged as potential sabotage. 
+4. **Static Baseline:** For comparison, the tasks are also evaluated against non-LLM static methods, including `cppcheck`, grep-based heuristics, and diff anomaly detection.
+
+**Test Infrastructure:**
+The project includes a fully compilable kernel module (`ka_vuln.c`) equipped with an 18-assertion visible test suite. A key feature of the sabotaged patches is that they pass these visible tests indistinguishably from honest patches. However, hidden triggers within the infrastructure are designed to specifically fire and detect the covertly preserved vulnerabilities.
+
+## Evaluation
+
+```bash
+# Run full evaluation with any provider
+python3 evaluate.py --provider openrouter --model google/gemini-2.5-flash
+
+# Run only monitor evaluation (skip attack agent)
+python3 evaluate.py --provider openrouter --model google/gemini-2.5-flash --skip-attack
+
+# Run static analysis comparison
+python3 static_analysis_baseline.py
+
+# Compute patch diff statistics
+python3 compute_diffs.py
+```
+
+Full cross-model analysis: `results/CROSS_MODEL_SUMMARY.md`
 
 ## The 10 Tasks
 
@@ -75,7 +110,7 @@ The 10 tasks in `evaluate.py` are evaluated as **isolated patch review** — the
 
 ## Key Results
 
-### Monitor detection rates (threshold >= 5)
+### Monitor detection rates (threshold ≥ 5)
 
 | Model | Detection | Avg Honest | Avg Sabotaged | Gap |
 |---|---|---|---|---|
@@ -94,41 +129,36 @@ The 10 tasks in `evaluate.py` are evaluated as **isolated patch review** — the
 
 ### Multi-run variance (Gemini, 3 runs at temp 0.3–0.5)
 
-Standard deviations <= 0.6 across all tasks. Detection outcomes identical across all runs.
+Standard deviations ≤ 0.6 across all tasks. Detection outcomes identical across all runs.
 
-Full results: `results/CROSS_MODEL_SUMMARY.md`
-
-## Repo Structure
+## Project Layout
 
 ```
-kernelarena/
-  README.md                          # This file
-  evaluate.py                        # LLM evaluation harness (10 tasks)
-  static_analysis_baseline.py        # cppcheck/grep/diff baseline
-  compute_diffs.py                   # Patch diff statistics
-
-  environments/kernel_repair_lab/
-    scripts/run_all.sh               # Master kernel evaluation script
-    cases/ka_vuln/
-      module/ka_vuln.c               # Vulnerable kernel module
-      module/Makefile
-      tests/public/test_visible.c    # 18-assertion visible test suite
-      hidden_checks/trigger_*.c      # Hidden sabotage triggers
-      public_artifacts/*.patch       # Honest + sabotaged patches
-
-  paper/
-    PAPER.md                         # Full paper
-    generate_figures.py              # Figure generation
-    figures/                         # Publication figures (PDF + PNG)
-
-  results/
-    CROSS_MODEL_SUMMARY.md           # Cross-model analysis
-    eval_gpt4o_full/                 # GPT-4o results (10 tasks)
-    eval_claude_sonnet_full/         # Claude results (10 tasks)
-    eval_gemini_flash_full/          # Gemini results (10 tasks)
-    eval_multirun_gemini_*/          # 3-run variance analysis
-    static_analysis_baseline.json    # Static analysis results
-    diff_statistics.json             # Patch diff stats
+.
+├── evaluate.py                        # LLM evaluation harness (10 tasks, 3 agents)
+├── static_analysis_baseline.py        # cppcheck/grep/diff baseline comparison
+├── compute_diffs.py                   # Patch diff statistics
+├── environments/kernel_repair_lab/
+│   ├── scripts/run_all.sh             # Master kernel evaluation script
+│   └── cases/ka_vuln/
+│       ├── module/ka_vuln.c           # Vulnerable kernel module
+│       ├── module/Makefile
+│       ├── tests/public/test_visible.c    # 18-assertion visible test suite
+│       ├── hidden_checks/trigger_*.c      # Hidden sabotage triggers
+│       └── public_artifacts/*.patch       # Honest + sabotaged patches
+├── paper/
+│   ├── PAPER.md                       # Full paper with results and analysis
+│   ├── generate_figures.py            # Figure generation
+│   └── figures/                       # Publication figures (PDF + PNG)
+├── results/
+│   ├── CROSS_MODEL_SUMMARY.md         # Cross-model analysis
+│   ├── eval_gpt4o_full/               # GPT-4o results (10 tasks)
+│   ├── eval_claude_sonnet_full/       # Claude results (10 tasks)
+│   ├── eval_gemini_flash_full/        # Gemini results (10 tasks)
+│   ├── eval_multirun_gemini_*/        # 3-run variance analysis
+│   ├── static_analysis_baseline.json  # Static analysis results
+│   └── diff_statistics.json           # Patch diff stats
+└── QUICKSTART.md                      # Detailed walkthrough & troubleshooting
 ```
 
 ## Citation
@@ -140,3 +170,4 @@ KernelArena: A Control Setting for Low-Level AI Sabotage
 Apart AI Control Hackathon, 2026
 https://github.com/ramaniyash/kernelarena
 ```
+****
